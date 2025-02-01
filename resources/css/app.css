@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.cm-editor {
+    height: 100%;
+}
+
+.cm-lineNumbers .cm-gutterElement {
+    min-width: 40px !important;
+}
