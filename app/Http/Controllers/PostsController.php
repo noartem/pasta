@@ -9,20 +9,22 @@ use Illuminate\Support\Facades\DB;
 
 class PostsController extends Controller
 {
-    public function index()
+    public function new()
     {
-        return view('posts.index');
+        return view('posts.new');
     }
 
-    public function list()
+    public function index()
     {
+        $count = Post::count();
         $posts = Post::query()
             ->select('id', 'slug', 'created_at', DB::raw('substr(content, 0, 110) as content'))
             ->orderByDesc('created_at')
+            ->limit(100)
             ->get();
 
-        return view('posts.list', [
-            'title' => "Pastas ({$posts->count()})",
+        return view('posts.index', [
+            'title' => "Pastas ($count)",
             'posts' => $posts,
         ]);
     }

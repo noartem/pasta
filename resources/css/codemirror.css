@@ -1,0 +1,12 @@
+.cm-scroller {
+    font-family: 'Fira Code' !important;
+    font-size: 14px;
+}
+
+.cm-editor {
+    height: 100%;
+}
+
+.cm-lineNumbers .cm-gutterElement {
+    min-width: 40px !important;
+}
