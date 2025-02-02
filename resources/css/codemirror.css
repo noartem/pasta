@@ -10,3 +10,7 @@
 .cm-lineNumbers .cm-gutterElement {
     min-width: 40px !important;
 }
+
+.cm-gutters {
+    user-select: none;
+}

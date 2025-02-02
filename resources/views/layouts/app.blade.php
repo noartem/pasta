@@ -21,11 +21,9 @@
     @stack('scripts')
 </head>
 
-<body class="font-sans antialiased dark:bg-black">
-    <div class=" dark:bg-black">
-        <div class="relative flex flex-col max-h-screen min-h-screen overflow-auto">
-            @yield('content')
-        </div>
+<body class="font-sans antialiased dark:bg-[#282c34]">
+    <div class="relative flex flex-col max-h-screen min-h-screen overflow-auto">
+        @yield('content')
     </div>
 </body>
 

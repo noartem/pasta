@@ -122,6 +122,8 @@ export function detectLanguage(sourceCode) {
         scores.html += 10;
     }
 
+    console.log(scores);
+
     // Determine the language with the highest score.
     const { lang: detectedLang, score: maxScore } = Object.entries(
         scores

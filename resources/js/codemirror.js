@@ -2,16 +2,20 @@ import { EditorView, basicSetup } from "codemirror";
 import { EditorState, Compartment } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
+
 import { language } from "@codemirror/language";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { htmlLanguage, html } from "@codemirror/lang-html";
 import { javascript, javascriptLanguage } from "@codemirror/lang-javascript";
 import { php, phpLanguage } from "@codemirror/lang-php";
 import { python, pythonLanguage } from "@codemirror/lang-python";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { detectLanguage } from "./detect-language";
 
+import { oneDark } from "@codemirror/theme-one-dark";
+import { tomorrow } from "thememirror";
+
 const languageConf = new Compartment();
+const themeConf = new Compartment();
 
 const languages = {
     javascript: [javascriptLanguage, javascript],
@@ -52,11 +56,28 @@ const autoLanguage = EditorState.transactionExtender.of((tr) => {
     };
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-    const dark =
+function isDarkMode() {
+    return (
         window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches;
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+    );
+}
 
+function watchDarkMode(callback) {
+    if (!window.matchMedia) {
+        return;
+    }
+
+    EditorView.baseTheme;
+
+    window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", () => {
+            callback(isDarkMode());
+        });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-codemirror]").forEach((editor) => {
         const content = editor.textContent.trim();
         editor.innerHTML = "";
@@ -94,11 +115,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 }),
                 EditorView.lineWrapping,
 
-                ...(dark ? [oneDark] : []),
+                themeConf.of(isDarkMode() ? oneDark : tomorrow),
 
                 languageConf.of(detectAndCreateLanguage(content)),
                 autoLanguage,
             ],
+        });
+
+        watchDarkMode((isDark) => {
+            view.dispatch({
+                effects: themeConf.reconfigure(isDark ? oneDark : tomorrow),
+            });
         });
 
         const autofocus = Boolean(editor.getAttribute("data-autofocus"));

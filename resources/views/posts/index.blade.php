@@ -3,11 +3,11 @@
 @section('content')
     <div class="flex flex-col items-start flex-1 w-full gap-6 p-4">
         <div class="flex gap-4 align-center">
-            <h1 class="text-2xl font-bold">
+            <h1 class="text-2xl font-bold dark:text-white">
                 🍝 Pastas
             </h1>
 
-            <a href="/new" class="px-4 py-1 border-2 border-gray-500 w-fit-content">
+            <a href="/new" class="px-4 py-1 border-2 border-gray-500 w-fit-content dark:text-white">
                 Create New Pasta
             </a>
         </div>
@@ -16,7 +16,7 @@
             @foreach ($posts as $post)
                 <li class="flex flex-col gap-1">
                     <div class="flex gap-2">
-                        <a href="/{{ $post->slug }}" class="text-gray-800 underline transition-all">
+                        <a href="/{{ $post->slug }}" class="text-gray-800 underline transition-all dark:text-white">
                             {{ $post->slug }}
                         </a>
                         <abbr class="text-gray-400 no-underline" title="{{ $post->created_at }}">
