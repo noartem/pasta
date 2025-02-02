@@ -13,5 +13,5 @@ docker build -t pasta .
 Run:
 
 ```
-docker run -d --name pasta -p 8000:8000 -v $(pwd)/database/database.sqlite:/var/www/html/database/sqlite pasta
+docker run -d --name pasta -p 8000:8000 -v $(pwd)/database/database.sqlite:/var/www/html/database/database.sqlite -v $(pwd)/.env:/var/www/html/.env pasta
 ```
