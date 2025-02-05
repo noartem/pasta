@@ -12,10 +12,13 @@ import { python, pythonLanguage } from "@codemirror/lang-python";
 import { detectLanguage } from "./detect-language";
 
 import { oneDark } from "@codemirror/theme-one-dark";
-import { tomorrow } from "thememirror";
+import { ayuLight } from "thememirror";
+
+const themeConf = new Compartment();
+const lightTheme = ayuLight;
+const darkTheme = oneDark;
 
 const languageConf = new Compartment();
-const themeConf = new Compartment();
 
 const languages = {
     javascript: [javascriptLanguage, javascript],
@@ -115,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }),
                 EditorView.lineWrapping,
 
-                themeConf.of(isDarkMode() ? oneDark : tomorrow),
+                themeConf.of(isDarkMode() ? darkTheme : lightTheme),
 
                 languageConf.of(detectAndCreateLanguage(content)),
                 autoLanguage,
@@ -124,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         watchDarkMode((isDark) => {
             view.dispatch({
-                effects: themeConf.reconfigure(isDark ? oneDark : tomorrow),
+                effects: themeConf.reconfigure(isDark ? darkTheme : lightTheme),
             });
         });
 
