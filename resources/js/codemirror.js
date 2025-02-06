@@ -1,6 +1,6 @@
 import { EditorView, basicSetup } from "codemirror";
 import { EditorState, Compartment } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
+import { keymap, highlightSpecialChars } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 
 import { language } from "@codemirror/language";
@@ -112,6 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]),
 
                 basicSetup,
+                highlightSpecialChars(),
 
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged) {
