@@ -1,8 +1,8 @@
-<textarea name="{{ $name }}" id="{{ $name }}" class="hidden"></textarea>
+<textarea name="{{ $name }}" id="{{ $name }}" autofocus
+    style="position: fixed; width: 10px; height: 10px; opacity: 0; ">{{ $value }}</textarea>
 
 <div id="{{ $id }}" data-codemirror="true" data-for="{{ $name }}" data-autofocus="{{ $autofocus }}"
     class="w-full min-h-full font-mono">
-    {{ $slot }}
 </div>
 
 @once('codemirror')

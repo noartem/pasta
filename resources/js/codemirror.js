@@ -82,21 +82,23 @@ function watchDarkMode(callback) {
 
 document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-codemirror]").forEach((editor) => {
-        const content = editor.textContent.trim();
-        editor.innerHTML = "";
-
         const form = editor.closest("form");
         form?.addEventListener("submit", () => {
             document.getElementById("content").value =
                 view.state.doc.toString();
         });
 
-        const editorFor = editor.getAttribute("data-for");
-        const editorForElement = form.querySelector(`[name="${editorFor}"]`);
+        const forAttribute = editor.getAttribute("data-for");
+        const textarea = form.querySelector(`textarea[name="${forAttribute}"]`);
+
+        const autofocus = Boolean(editor.getAttribute("data-autofocus"));
+        if (autofocus) {
+            textarea.focus();
+        }
 
         const view = new EditorView({
             parent: editor,
-            doc: content,
+            doc: textarea.value,
             extensions: [
                 keymap.of([
                     {
@@ -113,14 +115,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged) {
-                        editorForElement.value = update.state.doc.toString();
+                        textarea.value = update.state.doc.toString();
                     }
                 }),
                 EditorView.lineWrapping,
 
                 themeConf.of(isDarkMode() ? darkTheme : lightTheme),
 
-                languageConf.of(detectAndCreateLanguage(content)),
+                languageConf.of(detectAndCreateLanguage(textarea.value)),
                 autoLanguage,
             ],
         });
@@ -131,7 +133,23 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        const autofocus = Boolean(editor.getAttribute("data-autofocus"));
+        const updateSelectionFromTextare = () =>
+            view.dispatch({
+                selection: {
+                    head: textarea.selectionStart,
+                    anchor: textarea.selectionStart,
+                },
+                scrollIntoView: true,
+            });
+        const updateValueFromTextarea = () =>
+            view.dispatch({
+                changes: {
+                    from: 0,
+                    to: view.state.doc.length,
+                    insert: textarea.value,
+                },
+            });
+
         if (autofocus) {
             const autofocusTimer = setInterval(() => {
                 view.focus();
@@ -140,5 +158,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }, 500);
         }
+
+        const textareaListenerAbortController = new AbortController();
+        const waitFocusTimer = setInterval(() => {
+            if (view.hasFocus) {
+                textareaListenerAbortController.abort();
+                textarea.style.display = "none";
+                clearInterval(waitFocusTimer);
+            }
+        }, 100);
+
+        updateSelectionFromTextare();
+        textarea.addEventListener(
+            "selectionchange",
+            updateSelectionFromTextare,
+            { signal: textareaListenerAbortController.signal }
+        );
+
+        updateValueFromTextarea();
+        textarea.addEventListener("input", updateValueFromTextarea, {
+            signal: textareaListenerAbortController.signal,
+        });
     });
 });

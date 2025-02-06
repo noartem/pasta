@@ -14,6 +14,7 @@ class Codemirror extends Component
     public function __construct(
         ?string $id = null,
         ?string $name = null,
+        public readonly string $value = '',
         public readonly bool $autofocus = false,
     ) {
         $this->id = $id ?? uniqid();
