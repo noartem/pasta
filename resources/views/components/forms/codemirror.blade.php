@@ -1,5 +1,4 @@
-<textarea name="{{ $name }}" id="{{ $name }}" autofocus
-    style="position: fixed; width: 10px; height: 10px; opacity: 0; ">{{ $value }}</textarea>
+<textarea name="{{ $name }}" id="{{ $name }}" autofocus class="fixed w-10 h-10 opacity-0">{!! htmlspecialchars_decode(e($value)) !!}</textarea>
 
 <div id="{{ $id }}" data-codemirror="true" data-for="{{ $name }}" data-autofocus="{{ $autofocus }}"
     class="w-full min-h-full font-mono">

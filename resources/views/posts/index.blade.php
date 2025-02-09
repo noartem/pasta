@@ -7,7 +7,7 @@
                 🍝 Pastas
             </h1>
 
-            <a href="/new" class="px-4 py-1 border-2 border-gray-500 w-fit-content dark:text-white">
+            <a href="/" class="px-4 py-1 border-2 border-gray-500 w-fit-content dark:text-white">
                 Create New Pasta
             </a>
         </div>
