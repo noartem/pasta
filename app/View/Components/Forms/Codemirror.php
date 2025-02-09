@@ -16,6 +16,7 @@ class Codemirror extends Component
         ?string $name = null,
         public readonly string $value = '',
         public readonly bool $autofocus = false,
+        public readonly bool $indicateChangesInPageTitle = false,
     ) {
         $this->id = $id ?? uniqid();
         $this->name = $name ?? uniqid();

@@ -91,10 +91,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const forAttribute = editor.getAttribute("data-for");
         const textarea = form.querySelector(`textarea[name="${forAttribute}"]`);
 
+        const indicateChangesInPageTitle = Boolean(
+            editor.getAttribute("data-indicate-changes-in-page-title")
+        );
+
         const autofocus = Boolean(editor.getAttribute("data-autofocus"));
         if (autofocus) {
             textarea.focus();
         }
+
+        let docContentLoaded = false;
+        let docContentOriginal = "";
+        let docContentChanged = false;
 
         const view = new EditorView({
             parent: editor,
@@ -117,6 +125,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged) {
                         textarea.value = update.state.doc.toString();
+
+                        if (!docContentLoaded) {
+                            docContentLoaded = true;
+                            docContentOriginal = textarea.value.trim();
+                            return;
+                        }
+
+                        docContentChanged =
+                            docContentOriginal !== textarea.value.trim();
+
+                        if (indicateChangesInPageTitle) {
+                            const changeIndicator = `🔴`;
+                            const pageHasIndicator = document.title.includes(
+                                `${changeIndicator} `
+                            );
+                            if (docContentChanged && !pageHasIndicator) {
+                                document.title = `${changeIndicator} ${document.title}`;
+                            } else if (!docContentChanged && pageHasIndicator) {
+                                document.title = document.title.replace(
+                                    changeIndicator,
+                                    ""
+                                );
+                            }
+                        }
                     }
                 }),
                 EditorView.lineWrapping,
