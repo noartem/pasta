@@ -13,6 +13,7 @@ export default defineConfig({
                 "resources/css/app.css",
                 "resources/css/codemirror.css",
                 "resources/js/codemirror.js",
+                "resources/js/list.js",
             ],
         },
     },

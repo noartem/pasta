@@ -55,6 +55,11 @@ pub async fn migrate(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             .execute(pool)
             .await?;
     }
+    if !columns.iter().any(|column| column == "language") {
+        sqlx::raw_sql("ALTER TABLE posts ADD COLUMN language VARCHAR")
+            .execute(pool)
+            .await?;
+    }
     sqlx::raw_sql("CREATE INDEX IF NOT EXISTS posts_parent_id_index ON posts (parent_id)")
         .execute(pool)
         .await?;
@@ -69,6 +74,8 @@ pub struct Post {
     pub version: i64,
     pub slug: String,
     pub content: String,
+    /// Language chosen in the editor; `None` means auto-detect.
+    pub language: Option<String>,
 }
 
 #[derive(FromRow)]
@@ -89,15 +96,17 @@ pub async fn insert_post(
     pool: &SqlitePool,
     slug: &str,
     content: &str,
+    language: Option<&str>,
     parent: Option<&Post>,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().format(TIMESTAMP_FORMAT).to_string();
     sqlx::query(
-        "INSERT INTO posts (slug, content, parent_id, version, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO posts (slug, content, language, parent_id, version, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(slug)
     .bind(content)
+    .bind(language)
     .bind(parent.map(|parent| parent.id))
     .bind(parent.map_or(1, |parent| parent.version + 1))
     .bind(&now)
@@ -108,10 +117,12 @@ pub async fn insert_post(
 }
 
 pub async fn find_post(pool: &SqlitePool, slug: &str) -> Result<Option<Post>, sqlx::Error> {
-    sqlx::query_as("SELECT id, parent_id, version, slug, content FROM posts WHERE slug = ?")
-        .bind(slug)
-        .fetch_optional(pool)
-        .await
+    sqlx::query_as(
+        "SELECT id, parent_id, version, slug, content, language FROM posts WHERE slug = ?",
+    )
+    .bind(slug)
+    .fetch_optional(pool)
+    .await
 }
 
 pub async fn find_slug(pool: &SqlitePool, id: i64) -> Result<Option<String>, sqlx::Error> {

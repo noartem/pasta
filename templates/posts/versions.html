@@ -2,8 +2,10 @@
 
 {% block title %}Versions of Pasta #{{ current }}{% endblock %}
 
+{% block head %}<script type="module" src="{{ assets.url("resources/js/list.js") }}"></script>{% endblock %}
+
 {% block content %}
-    <div class="flex flex-col items-start flex-1 w-full gap-6 p-4">
+    <div class="flex flex-col items-start flex-1 w-full max-w-3xl gap-6 p-4 mx-auto">
         <div class="flex gap-4 align-center">
             <h1 class="text-2xl font-bold dark:text-white">
                 🍝 Versions
@@ -14,10 +16,15 @@
             </a>
         </div>
 
-        <ul class="flex flex-col gap-4">
+        <p class="hidden text-sm text-gray-400 sm:block">
+            Keyboard: <kbd>↑</kbd> <kbd>↓</kbd> select, <kbd>Enter</kbd> open (<kbd>Alt+Enter</kbd> in a new tab),
+            <kbd>n</kbd> new pasta
+        </p>
+
+        <ul class="flex flex-col w-full gap-2">
             {% for post in versions %}
-                <li class="flex flex-col gap-1 pl-3 border-l-2 {% if post.slug == current %}border-gray-800 dark:border-white{% else %}border-transparent{% endif %}"
-                    style="margin-left: {{ post.indent }}px">
+                <li class="flex flex-col gap-1 py-1 pl-3 pr-2 rounded-r focus-within:bg-gray-200 dark:focus-within:bg-white/10 border-l-2 {% if post.slug == current %}border-gray-800 dark:border-white{% else %}border-transparent{% endif %}"
+                    style="margin-left: {{ post.indent }}px" data-list-item{% if post.slug == current %} data-current{% endif %}>
                     {% include "list_item.html" %}
                 </li>
             {% endfor %}

@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 
+{% block html_attrs %}{% if editor.centered %} class="layout-centered"{% endif %}{% endblock %}
+
 {% block head %}{% include "editor_head.html" %}{% endblock %}
 
 {% block content %}
     {% include "editor.html" %}
 
     <nav class="fixed z-10 flex gap-3 px-2 py-1 text-sm text-gray-400 rounded bottom-2 right-4 bg-white/80 dark:bg-[#282c34]/80">
+        {% include "editor_controls.html" %}
         <a href="/about" class="hover:underline" title="About Pasta">about</a>
     </nav>
 {% endblock %}

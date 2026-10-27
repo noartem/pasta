@@ -1,0 +1,11 @@
+{# Expects `editor: &Editor` in scope; goes into the editor's bottom-right panel. #}
+<select name="language" form="editor-form" id="language-select" autocomplete="off" title="Syntax highlighting (Alt+L, on macOS Ctrl+Option+L)"
+    aria-label="Syntax highlighting" class="bg-transparent dark:[color-scheme:dark] cursor-pointer hover:underline focus:underline">
+    <option value="">Auto</option>
+    {% for (id, name) in editor.languages() %}
+        <option value="{{ id }}" {% if editor.is_language(id) %}selected{% endif %}>{{ name }}</option>
+    {% endfor %}
+</select>
+<button type="button" id="layout-toggle" class="hover:underline" title="Toggle centered layout (Alt+W, on macOS Ctrl+Option+W)">
+    {% if editor.centered %}full width{% else %}center{% endif %}
+</button>

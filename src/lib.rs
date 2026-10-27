@@ -4,6 +4,7 @@ pub mod config;
 pub mod db;
 pub mod handlers;
 pub mod humanize;
+pub mod language;
 pub mod title;
 
 use std::path::Path;

@@ -1,6 +1,6 @@
 {# Expects `post: &ListItem` in scope. #}
 <div class="flex gap-2">
-    <a href="/{{ post.slug }}" class="text-gray-800 underline transition-all dark:text-white">
+    <a href="/{{ post.slug }}" class="text-gray-800 underline transition-all dark:text-white" data-list-link>
         {{ post.slug }}
     </a>
     <span class="text-gray-500">v{{ post.version }}</span>
