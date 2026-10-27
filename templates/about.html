@@ -28,14 +28,34 @@
                     <tr><td class="pr-6 font-mono">Ctrl+[</td><td>Previous version (add Alt to open it in a new tab)</td></tr>
                     <tr><td class="pr-6 font-mono">Ctrl+]</td><td>Next version (add Alt to open it in a new tab)</td></tr>
                     <tr><td class="pr-6 font-mono">Ctrl+Click</td><td>Open a link</td></tr>
+                    <tr><td class="pr-6 font-mono">Alt+W</td><td>Switch between the full-width and the centered editor</td></tr>
+                    <tr><td class="pr-6 font-mono">Alt+L</td><td>Choose the syntax highlighting language (Esc or Enter returns to the text)</td></tr>
                 </tbody>
             </table>
-            <p class="text-gray-400">On macOS use Cmd instead of Ctrl.</p>
+            <p class="text-gray-400">On macOS use Cmd instead of Ctrl, and Ctrl+Option instead of Alt (Ctrl+Option+W, Ctrl+Option+L).</p>
+            <p>In the lists of pastas and versions:</p>
+            <table class="text-left">
+                <tbody>
+                    <tr><td class="pr-6 font-mono">&darr; / j, &uarr; / k</td><td>Select the next / previous pasta</td></tr>
+                    <tr><td class="pr-6 font-mono">Home / End</td><td>Select the first / last pasta</td></tr>
+                    <tr><td class="pr-6 font-mono">Enter / o</td><td>Open the selected pasta (Alt+Enter: in a new tab)</td></tr>
+                    <tr><td class="pr-6 font-mono">&larr; / &rarr;</td><td>Previous / next page</td></tr>
+                    <tr><td class="pr-6 font-mono">/</td><td>Search (Esc leaves the search field, &darr; goes to the results)</td></tr>
+                    <tr><td class="pr-6 font-mono">n</td><td>Create a new pasta</td></tr>
+                </tbody>
+            </table>
         </section>
 
         <section class="flex flex-col gap-2">
             <h2 class="text-xl font-semibold">Syntax highlighting</h2>
-            <p>The language is detected automatically: Markdown, JavaScript, HTML, CSS, JSON, SQL, PHP, Python and Rust.</p>
+            <p>
+                The kind of text is detected automatically: plain text, Markdown, CSV (each column in its own color),
+                JSON, YAML, HTML, CSS, JavaScript, TypeScript, Python, PHP, Rust, Go, Java, C/C++, Shell and SQL.
+            </p>
+            <p>
+                If the guess is wrong, pick the language in the bottom right corner (or press Alt+L). The choice is
+                saved with the pasta; "Auto" goes back to detection.
+            </p>
         </section>
 
         <p><a href="/" class="underline">Create New Pasta</a></p>

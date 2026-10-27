@@ -1,5 +1,5 @@
 import { EditorView, basicSetup } from "codemirror";
-import { EditorState, Compartment, Prec } from "@codemirror/state";
+import { Compartment, Prec } from "@codemirror/state";
 import {
     keymap,
     highlightSpecialChars,
@@ -10,17 +10,8 @@ import {
 } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 
-import { language } from "@codemirror/language";
-import { markdown } from "@codemirror/lang-markdown";
-import { html } from "@codemirror/lang-html";
-import { javascript } from "@codemirror/lang-javascript";
-import { php } from "@codemirror/lang-php";
-import { python } from "@codemirror/lang-python";
-import { sql } from "@codemirror/lang-sql";
-import { json } from "@codemirror/lang-json";
-import { css } from "@codemirror/lang-css";
-import { rust } from "@codemirror/lang-rust";
 import { detectLanguage } from "./detect-language";
+import { isLanguage, languageKey, loadLanguage } from "./languages";
 
 import { oneDark } from "@codemirror/theme-one-dark";
 import { ayuLight } from "thememirror";
@@ -31,38 +22,85 @@ const darkTheme = oneDark;
 
 const languageConf = new Compartment();
 
-const languages = { javascript, html, markdown, php, python, sql, json, css, rust };
-const defaultLanguage = "markdown";
-
 // Detection only looks at the start of the document to keep typing in huge pastes fast.
 const DETECT_LANGUAGE_CHARS = 20000;
+// Re-detect once typing pauses.
+const DETECT_LANGUAGE_DELAY_MS = 300;
 
-// One LanguageSupport per language, so the installed language can be compared by identity
-// (factories like markdown() create a new Language on every call).
-const languageSupports = {};
-function languageSupport(detected) {
-    const name = detected === "unknown" ? defaultLanguage : detected;
-    languageSupports[name] ??= languages[name]();
-    return languageSupports[name];
-}
+/**
+ * Highlights the editor in the language chosen in `select` (the `language` form field), or in
+ * the detected one when "Auto" is chosen. Returns a function to call when the text changes.
+ */
+function languageSwitcher(view, select) {
+    const autoOption = select?.querySelector('option[value=""]');
+    const languageName = (id) =>
+        select?.querySelector(`option[value="${id}"]`)?.textContent.trim() ?? id;
 
-function detectLanguageSupport(text) {
-    return languageSupport(detectLanguage(text.slice(0, DETECT_LANGUAGE_CHARS)));
-}
+    let appliedKey = null;
+    async function apply() {
+        const text = view.state.doc.sliceString(0, DETECT_LANGUAGE_CHARS);
+        let id = select?.value ?? "";
+        if (!isLanguage(id)) {
+            id = detectLanguage(text);
+            if (autoOption) autoOption.textContent = `Auto (${languageName(id)})`;
+        }
 
-const autoLanguage = EditorState.transactionExtender.of((tr) => {
-    if (!tr.docChanged) return null;
-
-    const support = detectLanguageSupport(
-        tr.newDoc.sliceString(0, DETECT_LANGUAGE_CHARS)
-    );
-    if (support.language === tr.startState.facet(language)) {
-        return null;
+        const key = languageKey(id, text);
+        if (key === appliedKey) return;
+        appliedKey = key;
+        let support;
+        try {
+            support = await loadLanguage(id, text);
+        } catch (error) {
+            // Retry next time, unless another language was chosen meanwhile.
+            if (appliedKey === key) appliedKey = null;
+            console.error(`Failed to load ${id} highlighting`, error);
+            return;
+        }
+        // A later call may have switched to another language while this one was loading.
+        if (appliedKey === key) {
+            view.dispatch({ effects: languageConf.reconfigure(support) });
+        }
     }
-    return {
-        effects: languageConf.reconfigure(support),
+
+    select?.addEventListener("change", apply);
+    apply();
+
+    let timer = null;
+    return () => {
+        clearTimeout(timer);
+        timer = setTimeout(apply, DETECT_LANGUAGE_DELAY_MS);
     };
-});
+}
+
+const LAYOUT_COOKIE = "pasta_layout";
+
+/** Switches between the full-width and the centered editor; the server reads the cookie. */
+function toggleLayout(button) {
+    const centered = document.documentElement.classList.toggle("layout-centered");
+    document.cookie = centered
+        ? `${LAYOUT_COOKIE}=centered; path=/; max-age=31536000; samesite=lax`
+        : `${LAYOUT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+    if (button) {
+        button.textContent = centered ? "full width" : "center";
+    }
+}
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+
+// Alt+<key> (Ctrl+Option+<key> on macOS, where Option alone types characters such as `@`)
+// by physical key, so it works in any keyboard layout. AltGr (which Windows reports as
+// Ctrl+Alt) types characters and is left alone.
+function isAltShortcut(event, code) {
+    return (
+        event.code === code &&
+        event.altKey &&
+        event.ctrlKey === isMac &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        !event.getModifierState("AltGraph")
+    );
+}
 
 const linkMatcher = new MatchDecorator({
     regexp: /https?:\/\/[^\s<>"'`]*[^\s<>"'`.,;:!?)\]}]/g,
@@ -215,6 +253,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const forAttribute = editor.getAttribute("data-for");
         const textarea = form.querySelector(`textarea[name="${forAttribute}"]`);
 
+        const languageSelect = document.getElementById("language-select");
+        const initialLanguage = languageSelect?.value ?? "";
+        const layoutButton = document.getElementById("layout-toggle");
+
         const indicateChangesInPageTitle = Boolean(
             editor.getAttribute("data-indicate-changes-in-page-title")
         );
@@ -226,7 +268,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let docContentLoaded = false;
         let docContentOriginal = "";
-        let docContentChanged = false;
+
+        const indicateChanges = () => {
+            if (!indicateChangesInPageTitle) return;
+
+            const changed =
+                (docContentLoaded && docContentOriginal !== textarea.value.trim()) ||
+                (languageSelect !== null && languageSelect.value !== initialLanguage);
+            const changeIndicator = `🔴`;
+            const pageHasIndicator = document.title.includes(`${changeIndicator} `);
+            if (changed && !pageHasIndicator) {
+                document.title = `${changeIndicator} ${document.title}`;
+            } else if (!changed && pageHasIndicator) {
+                document.title = document.title.replace(`${changeIndicator} `, "");
+            }
+        };
+        let onTextChange = () => {};
 
         const view = new EditorView({
             parent: editor,
@@ -255,39 +312,53 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (update.docChanged) {
                         textarea.value = update.state.doc.toString();
 
+                        onTextChange();
+
                         if (!docContentLoaded) {
                             docContentLoaded = true;
                             docContentOriginal = textarea.value.trim();
                             return;
                         }
-
-                        docContentChanged =
-                            docContentOriginal !== textarea.value.trim();
-
-                        if (indicateChangesInPageTitle) {
-                            const changeIndicator = `🔴`;
-                            const pageHasIndicator = document.title.includes(
-                                `${changeIndicator} `
-                            );
-                            if (docContentChanged && !pageHasIndicator) {
-                                document.title = `${changeIndicator} ${document.title}`;
-                            } else if (!docContentChanged && pageHasIndicator) {
-                                document.title = document.title.replace(
-                                    `${changeIndicator} `,
-                                    ""
-                                );
-                            }
-                        }
+                        indicateChanges();
                     }
                 }),
                 EditorView.lineWrapping,
 
                 themeConf.of(isDarkMode() ? darkTheme : lightTheme),
 
-                languageConf.of(detectLanguageSupport(textarea.value)),
-                autoLanguage,
+                languageConf.of([]),
             ],
         });
+
+        onTextChange = languageSwitcher(view, languageSelect);
+        languageSelect?.addEventListener("change", indicateChanges);
+        languageSelect?.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                form.requestSubmit();
+            } else if (event.key === "Escape" || event.key === "Enter") {
+                event.preventDefault();
+                view.focus();
+            }
+        });
+
+        layoutButton?.addEventListener("click", () => {
+            toggleLayout(layoutButton);
+            view.focus();
+        });
+        window.addEventListener(
+            "keydown",
+            (event) => {
+                if (isAltShortcut(event, "KeyW")) {
+                    event.preventDefault();
+                    toggleLayout(layoutButton);
+                } else if (isAltShortcut(event, "KeyL") && languageSelect) {
+                    event.preventDefault();
+                    languageSelect.focus();
+                }
+            },
+            true
+        );
 
         watchDarkMode((isDark) => {
             view.dispatch({

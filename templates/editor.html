@@ -1,5 +1,5 @@
-{# Expects `editor: &Editor` in scope. #}
-<form action="/" method="post" class="flex flex-1 w-full">
+{# Expects `editor: &Editor` in scope. The controls from `editor_controls.html` belong to this form. #}
+<form action="/" method="post" id="editor-form" class="editor-column flex flex-1 w-full">
     {% if !editor.parent.is_empty() %}
         <input type="hidden" name="parent" value="{{ editor.parent }}">
     {% endif %}

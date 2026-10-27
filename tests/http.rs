@@ -14,7 +14,8 @@ use tower::ServiceExt;
 const MANIFEST: &str = r#"{
     "resources/css/app.css": {"file": "assets/app-1.css"},
     "resources/css/codemirror.css": {"file": "assets/codemirror-2.css"},
-    "resources/js/codemirror.js": {"file": "assets/codemirror-3.js"}
+    "resources/js/codemirror.js": {"file": "assets/codemirror-3.js"},
+    "resources/js/list.js": {"file": "assets/list-4.js"}
 }"#;
 
 struct TestApp {
@@ -294,6 +295,59 @@ async fn saving_unchanged_content_reuses_version() {
 }
 
 #[tokio::test]
+async fn saves_and_inherits_chosen_language() {
+    let app = test_app("secret").await;
+
+    let auto = app.create(&[("content", "text"), ("language", "")]).await;
+    let auto_page = app.get(&format!("/{auto}")).await.body;
+    assert!(auto_page.contains(r#"<option value="">Auto</option>"#));
+    assert!(!auto_page.contains("selected"));
+
+    // Same content, another language: a new version.
+    let rust = app
+        .create(&[("content", "text"), ("language", "rust"), ("parent", &auto)])
+        .await;
+    assert_ne!(rust, auto);
+    let rust_page = app.get(&format!("/{rust}")).await.body;
+    assert!(rust_page.contains(r#"<option value="rust" selected>Rust</option>"#));
+
+    // Same content and language: the same version.
+    let again = app
+        .create(&[("content", "text"), ("language", "rust"), ("parent", &rust)])
+        .await;
+    assert_eq!(again, rust);
+
+    let unknown = app
+        .create(&[("content", "other"), ("language", "<script>")])
+        .await;
+    let unknown_page = app.get(&format!("/{unknown}")).await.body;
+    assert!(!unknown_page.contains("selected"));
+    assert!(!unknown_page.contains("<script>"));
+}
+
+#[tokio::test]
+async fn layout_cookie_centers_editor() {
+    let app = test_app("secret").await;
+    let slug = app.create(&[("content", "text")]).await;
+
+    for uri in ["/".to_owned(), format!("/{slug}")] {
+        let full = app.get(&uri).await.body;
+        assert!(full.contains(r#"<html lang="en">"#), "{uri}");
+        assert!(full.contains(r#"id="layout-toggle""#), "{uri}");
+
+        let request = Request::get(&uri)
+            .header(header::COOKIE, "theme=x; pasta_layout=centered")
+            .body(Body::empty())
+            .unwrap();
+        let centered = app.send(request).await.body;
+        assert!(
+            centered.contains(r#"<html lang="en" class="layout-centered">"#),
+            "{uri}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn unknown_parent_creates_root_version() {
     let app = test_app("secret").await;
 
@@ -392,6 +446,8 @@ async fn index_lists_searches_and_paginates() {
     let clamped = app.get_as_admin("/all?page=999", "admin", "secret").await;
     assert_eq!(clamped.status, StatusCode::OK);
     assert!(clamped.body.contains("Page 2"));
+    assert!(clamped.body.contains(r#"id="prev-page""#));
+    assert!(clamped.body.contains("/build/assets/list-4.js"));
 }
 
 #[tokio::test]
@@ -402,6 +458,7 @@ async fn about_page() {
 
     assert_eq!(response.status, StatusCode::OK);
     assert!(response.body.contains("Keyboard shortcuts"));
+    assert!(response.body.contains("Alt+W"));
 }
 
 #[tokio::test]

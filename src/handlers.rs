@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet};
 use askama::Template;
 use axum::Form;
 use axum::extract::{Path, Query, State};
-use axum::http::{StatusCode, header};
+use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use chrono::{NaiveDateTime, Utc};
 use serde::Deserialize;
 
-use crate::{AppState, Assets, db, humanize, title};
+use crate::{AppState, Assets, db, humanize, language, title};
 
 const SLUG_ALPHABET: [char; 31] = [
     '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'm',
@@ -21,6 +21,8 @@ const PREVIEW_CHARS: usize = 100;
 const VERSION_TREE_LIMIT: i64 = 1000;
 /// Deeper versions are drawn at this indent, so long edit chains don't run off the page.
 const MAX_TREE_INDENT: usize = 10;
+/// Cookie set by the editor's width toggle.
+const LAYOUT_COOKIE: &str = "pasta_layout";
 
 pub struct AppError(Box<dyn std::error::Error + Send + Sync>);
 
@@ -65,6 +67,20 @@ struct Editor {
     prev_url: String,
     next_url: String,
     indicate_changes: bool,
+    /// Id of the chosen language; empty for auto-detect.
+    language: String,
+    /// Centered column instead of the full width.
+    centered: bool,
+}
+
+impl Editor {
+    fn languages(&self) -> &'static [(&'static str, &'static str)] {
+        &language::LANGUAGES
+    }
+
+    fn is_language(&self, id: &str) -> bool {
+        self.language == id
+    }
 }
 
 #[derive(Template)]
@@ -135,6 +151,9 @@ pub struct CreateForm {
     /// Slug of the version this one was edited from.
     #[serde(default)]
     parent: String,
+    /// Language id; empty or unknown means auto-detect.
+    #[serde(default)]
+    language: String,
 }
 
 #[derive(Deserialize)]
@@ -145,12 +164,18 @@ pub struct IndexQuery {
     page: Option<String>,
 }
 
-pub async fn new_post(State(state): State<AppState>) -> Result<Html<String>, AppError> {
+pub async fn new_post(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, AppError> {
     let page = NewPage {
         assets: &state.assets,
-        editor: Editor::default(),
+        editor: Editor {
+            centered: layout_centered(&headers),
+            ..Editor::default()
+        },
     };
-    Ok(Html(page.render()?))
+    Ok(([(header::VARY, "Cookie")], Html(page.render()?)).into_response())
 }
 
 pub async fn create_post(
@@ -165,18 +190,20 @@ pub async fn create_post(
         return Ok((StatusCode::PAYLOAD_TOO_LARGE, "Content is too long").into_response());
     }
 
+    let language = language::from_id(&form.language);
     let parent = match form.parent.as_str() {
         "" => None,
         slug => db::find_post(&state.db, slug).await?,
     };
     if let Some(parent) = &parent
         && parent.content == content
+        && parent.language.as_deref() == language
     {
         return Ok(Redirect::to(&format!("/{}", parent.slug)).into_response());
     }
 
     let slug = nanoid::nanoid!(SLUG_LENGTH, &SLUG_ALPHABET);
-    db::insert_post(&state.db, &slug, content, parent.as_ref()).await?;
+    db::insert_post(&state.db, &slug, content, language, parent.as_ref()).await?;
 
     Ok(Redirect::to(&format!("/{slug}")).into_response())
 }
@@ -184,6 +211,7 @@ pub async fn create_post(
 pub async fn show_post(
     State(state): State<AppState>,
     Path(slug): Path<String>,
+    headers: HeaderMap,
 ) -> Result<Response, AppError> {
     let Some(post) = db::find_post(&state.db, &slug).await? else {
         return Ok(not_found(State(state)).await);
@@ -221,9 +249,11 @@ pub async fn show_post(
             prev_url,
             next_url,
             indicate_changes: true,
+            language: post.language.unwrap_or_default(),
+            centered: layout_centered(&headers),
         },
     };
-    Ok(Html(page.render()?).into_response())
+    Ok(([(header::VARY, "Cookie")], Html(page.render()?)).into_response())
 }
 
 pub async fn versions(
@@ -323,6 +353,16 @@ pub async fn not_found(State(state): State<AppState>) -> Response {
     }
 }
 
+fn layout_centered(headers: &HeaderMap) -> bool {
+    headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(';'))
+        .filter_map(|pair| pair.trim().split_once('='))
+        .any(|(name, value)| name == LAYOUT_COOKIE && value == "centered")
+}
+
 /// Orders a version tree depth-first (children by id) and records each node's depth.
 fn flatten_tree(posts: Vec<db::PostSummary>, now: NaiveDateTime) -> Vec<ListItem> {
     let mut children: HashMap<Option<i64>, Vec<db::PostSummary>> = HashMap::new();
@@ -367,6 +407,26 @@ mod tests {
         assert_eq!(truncate("abcdef", 3), "abc...");
         assert_eq!(truncate("абв", 3), "абв");
         assert_eq!(truncate("абвг", 3), "абв...");
+    }
+
+    #[test]
+    fn reads_layout_cookie() {
+        let headers = |cookies: &[&str]| {
+            let mut map = HeaderMap::new();
+            for cookie in cookies {
+                map.append(header::COOKIE, cookie.parse().unwrap());
+            }
+            map
+        };
+
+        assert!(!layout_centered(&headers(&[])));
+        assert!(layout_centered(&headers(&["pasta_layout=centered"])));
+        assert!(layout_centered(&headers(&[
+            "a=1; pasta_layout=centered; b=2"
+        ])));
+        assert!(layout_centered(&headers(&["a=1", "pasta_layout=centered"])));
+        assert!(!layout_centered(&headers(&["pasta_layout=full"])));
+        assert!(!layout_centered(&headers(&["xpasta_layout=centered"])));
     }
 
     #[test]

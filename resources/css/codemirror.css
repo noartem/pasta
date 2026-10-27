@@ -19,3 +19,12 @@
     text-decoration: underline;
     cursor: pointer;
 }
+
+/* Toggled with Alt+W, see toggleLayout() in codemirror.js. */
+.layout-centered .editor-column {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+    border-left: 1px solid rgb(156 163 175 / 0.25);
+    border-right: 1px solid rgb(156 163 175 / 0.25);
+}
