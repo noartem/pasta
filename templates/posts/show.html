@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}{% include "editor_head.html" %}{% endblock %}
+
+{% block content %}
+    {% include "editor.html" %}
+
+    <nav class="fixed z-10 flex gap-3 px-2 py-1 text-sm text-gray-400 rounded bottom-2 right-4 bg-white/80 dark:bg-[#282c34]/80">
+        {% if !editor.prev_url.is_empty() %}
+            <a href="{{ editor.prev_url }}" class="hover:underline" title="Previous version (Ctrl+[, add Alt for a new tab)">&larr; v{{ version - 1 }}</a>
+        {% endif %}
+        <a href="/{{ slug }}/versions" class="font-semibold hover:underline" title="Version tree">v{{ version }}</a>
+        {% if !editor.next_url.is_empty() %}
+            <a href="{{ editor.next_url }}" class="hover:underline" title="Next version (Ctrl+], add Alt for a new tab)">v{{ version + 1 }} &rarr;</a>
+        {% endif %}
+        {% if next_count > 1 %}
+            <a href="/{{ slug }}/versions" class="hover:underline" title="Other next versions">+{{ next_count - 1 }}</a>
+        {% endif %}
+        <a href="/about" class="hover:underline" title="About Pasta">about</a>
+    </nav>
+{% endblock %}

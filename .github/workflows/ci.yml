@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Only the default branch and release tags publish images (not PRs or manual runs on other branches).
+      PUSH: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        if: env.PUSH == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: ${{ env.PUSH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # One push = one plain image manifest = one package version. Attestation manifests would be
+          # stored as extra untagged versions that the pruning step below could delete from under a tag.
+          provenance: false
+          sbom: false
+
+      - name: Keep only the 4 newest image versions
+        if: env.PUSH == 'true'
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: container
+          min-versions-to-keep: 4
+
+  # Deploys the freshly pushed sha-<commit> image to pasta.noartem.ru (see PROD.md).
+  # All prod secrets are sops-encrypted files in deploy/ (age X25519):
+  #   deploy/env.enc      — app env + deploy params (SSH_HOST/SSH_USER, GHCR_*, REMOTE_DIR)
+  #   deploy/ssh-key.enc  — deployer private SSH key (binary)
+  # The only repository secret is SOPS_AGE_KEY — the private age key for decryption.
+  deploy:
+    needs: docker
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      SOPS_VERSION: v3.13.3
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install sops
+        run: |
+          curl -fsSL -o /usr/local/bin/sops \
+            "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64"
+          chmod +x /usr/local/bin/sops
+
+      - name: Decrypt env and SSH key
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          umask 077
+          sops -d --input-type dotenv --output-type dotenv deploy/env.enc > deploy.env
+          # Only the app part of the env goes to the VPS; deploy params stay in CI.
+          grep -vE '^(SSH_|GHCR_|REMOTE_DIR=)' deploy.env > .env
+          mkdir -p ~/.ssh
+          sops -d deploy/ssh-key.enc > ~/.ssh/id_ed25519
+          set -a; . ./deploy.env; set +a
+          echo "::add-mask::$GHCR_TOKEN"
+          {
+            echo "SSH_HOST=$SSH_HOST"
+            echo "SSH_USER=$SSH_USER"
+            echo "REMOTE_DIR=${REMOTE_DIR:-/opt/pasta}"
+            echo "GHCR_USER=$GHCR_USER"
+            echo "GHCR_TOKEN=$GHCR_TOKEN"
+          } >> "$GITHUB_ENV"
+          rm deploy.env
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync compose + .env to VPS
+        run: |
+          rsync -avz -e "ssh -o IdentitiesOnly=yes" \
+            compose.yml .env "$SSH_USER@$SSH_HOST:$REMOTE_DIR/"
+
+      - name: Pull image and restart
+        run: |
+          ssh -o IdentitiesOnly=yes "$SSH_USER@$SSH_HOST" \
+            "REMOTE_DIR='$REMOTE_DIR' \
+             GHCR_USER='$GHCR_USER' \
+             GHCR_TOKEN='$GHCR_TOKEN' \
+             IMAGE_REPO='${{ github.repository }}' \
+             IMAGE_TAG='sha-${GITHUB_SHA::7}' \
+             bash -s" <<'SCRIPT'
+          set -euo pipefail
+          cd "$REMOTE_DIR"
+          chmod 600 .env
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          export IMAGE_REPO IMAGE_TAG
+          docker compose pull
+          docker compose up -d --no-build
+          # distroless image has no shell for a compose healthcheck — probe from the host.
+          for i in $(seq 30); do
+            curl -fsS http://127.0.0.1:8000/up >/dev/null && break
+            [ "$i" = 30 ] && { docker logs --tail 100 pasta; exit 1; }
+            sleep 1
+          done
+          docker compose ps
+          # GHCR keeps the last 4 versions for rollbacks; drop local copies of old tags.
+          RUNNING="$(docker inspect pasta --format '{{.Image}}')"
+          docker images "ghcr.io/$IMAGE_REPO" --format '{{.ID}}' | grep -v "^${RUNNING:7:12}$" \
+            | xargs -r docker rmi || true
+          docker image prune -f
+          SCRIPT

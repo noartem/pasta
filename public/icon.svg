@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    .bg { fill: #282c34; }
+    .bowl { fill: #e5c07b; }
+    .rim { fill: #d19a45; }
+    .noodle { fill: none; stroke: #f5e6b3; stroke-width: 4; stroke-linecap: round; }
+    .sauce { fill: #e06c75; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #1b1e24; }
+    }
+  </style>
+  <rect class="bg" width="64" height="64" rx="14"/>
+  <path class="noodle" d="M14 36c4-14 10-18 14-18s2 10-4 14M24 36c4-18 12-22 16-22s0 12-6 20M36 36c2-12 8-16 12-14s2 8-2 14"/>
+  <ellipse class="sauce" cx="32" cy="30" rx="7" ry="4"/>
+  <path class="bowl" d="M8 34h48c0 12-9 22-24 22S8 46 8 34z"/>
+  <rect class="rim" x="6" y="32" width="52" height="5" rx="2.5"/>
+</svg>

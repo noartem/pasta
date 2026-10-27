@@ -1,0 +1,14 @@
+{# Expects `post: &ListItem` in scope. #}
+<div class="flex gap-2">
+    <a href="/{{ post.slug }}" class="text-gray-800 underline transition-all dark:text-white">
+        {{ post.slug }}
+    </a>
+    <span class="text-gray-500">v{{ post.version }}</span>
+    <abbr class="text-gray-400 no-underline" title="{{ post.created_at }}">
+        {{ post.created_ago }}
+    </abbr>
+</div>
+
+<p class="ml-6 text-gray-400 break-all">
+    {{ post.preview }}
+</p>

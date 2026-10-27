@@ -14,3 +14,8 @@
 .cm-gutters {
     user-select: none;
 }
+
+.cm-link {
+    text-decoration: underline;
+    cursor: pointer;
+}

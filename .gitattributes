@@ -1,11 +1,11 @@
 * text=auto eol=lf
 
-*.blade.php diff=html
-*.css diff=css
+*.rs diff=rust
 *.html diff=html
+*.css diff=css
 *.md diff=markdown
-*.php diff=php
 
-/.github export-ignore
-CHANGELOG.md export-ignore
-.styleci.yml export-ignore
+*.ico binary
+*.png binary
+*.woff binary
+*.woff2 binary

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Pastas ({{ count }}){% endblock %}
+
+{% block content %}
+    <div class="flex flex-col items-start flex-1 w-full gap-6 p-4">
+        <div class="flex flex-wrap gap-4 align-center">
+            <h1 class="text-2xl font-bold dark:text-white">
+                🍝 Pastas
+            </h1>
+
+            <a href="/" class="px-4 py-1 border-2 border-gray-500 w-fit-content dark:text-white">
+                Create New Pasta
+            </a>
+
+            <form action="/all" method="get" class="flex gap-2">
+                <input type="search" name="q" value="{{ search }}" placeholder="Search…"
+                    class="px-2 py-1 bg-transparent border-2 border-gray-500 dark:text-white">
+                <button type="submit" class="px-4 py-1 border-2 border-gray-500 dark:text-white">Search</button>
+            </form>
+        </div>
+
+        <ul class="flex flex-col gap-4 list-disc list-inside">
+            {% for post in posts %}
+                <li class="flex flex-col gap-1">
+                    {% include "list_item.html" %}
+                </li>
+            {% else %}
+                <li class="text-gray-400">Nothing found</li>
+            {% endfor %}
+        </ul>
+
+        {% if prev_page_url.is_some() || next_page_url.is_some() %}
+            <nav class="flex gap-4 dark:text-white">
+                {% if let Some(url) = prev_page_url %}
+                    <a href="{{ url }}" class="underline">&larr; Previous</a>
+                {% endif %}
+                <span class="text-gray-400">Page {{ page }}</span>
+                {% if let Some(url) = next_page_url %}
+                    <a href="{{ url }}" class="underline">Next &rarr;</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    </div>
+{% endblock %}
