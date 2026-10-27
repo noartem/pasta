@@ -43,7 +43,7 @@ ssh -i ~/.ssh/weight-secret-deploy deployer@84.54.30.169   # docker — всё �
 curl -I https://pasta.noartem.ru/up                       # 200 = жив
 ssh weight-secret-bot 'curl -s http://127.0.0.1:8000/up'  # мимо Cloudflare/Caddy
 ssh weight-secret-bot 'docker logs -f --tail 200 pasta'
-ssh weight-secret-bot 'cd /opt/pasta && docker compose ps'
+ssh weight-secret-bot 'cd /opt/pasta && sudo docker compose ps'
 ```
 
 ## Деплой и откат
@@ -53,7 +53,7 @@ ssh weight-secret-bot 'cd /opt/pasta && docker compose ps'
 Откат на одну из 4 версий, оставшихся в GHCR (GitHub → Packages → pasta):
 
 ```bash
-ssh weight-secret-bot 'cd /opt/pasta && IMAGE_TAG=sha-<commit> docker compose up -d'
+ssh weight-secret-bot 'cd /opt/pasta && sudo IMAGE_TAG=sha-<commit> docker compose up -d'
 ```
 
 Или re-run старого workflow run в Actions.
@@ -65,9 +65,9 @@ ssh weight-secret-bot 'cd /opt/pasta && IMAGE_TAG=sha-<commit> docker compose up
 ssh weight-secret-bot 'docker run --rm -v pasta_data:/data:ro alpine tar -C /data -czf - .' > pasta-backup.tar.gz
 
 # Восстановление
-ssh weight-secret-bot 'cd /opt/pasta && docker compose stop'
+ssh weight-secret-bot 'cd /opt/pasta && sudo docker compose stop'
 ssh weight-secret-bot 'docker run --rm -i -v pasta_data:/data alpine sh -c "tar -C /data -xzf - && chown -R 65532:65532 /data"' < pasta-backup.tar.gz
-ssh weight-secret-bot 'cd /opt/pasta && docker compose start'
+ssh weight-secret-bot 'cd /opt/pasta && sudo docker compose start'
 ```
 
 ## Секреты
