@@ -1,0 +1,34 @@
+[package]
+name = "pasta"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "The tastiest note manager on the entire internet"
+license = "MIT"
+publish = false
+
+[dependencies]
+askama = "0.16.1"
+axum = "0.8.9"
+base64 = "0.23.1"
+chrono = "0.4.45"
+dotenvy = "0.15.7"
+nanoid = "0.5.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1"
+serde_urlencoded = "0.7"
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "derive"] }
+subtle = "2.6.1"
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tower-http = { version = "0.7.1", features = ["fs", "trace", "set-header"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+[dev-dependencies]
+http-body-util = "0.1.5"
+tower = { version = "0.5.3", features = ["util"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

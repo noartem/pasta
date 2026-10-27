@@ -1,6 +1,8 @@
 .git/
+.github/
 .gitignore
 .gitattributes
+.omc/
 
 .env
 .env.*
@@ -9,15 +11,16 @@
 .vscode/
 .editorconfig
 
+Dockerfile
 *.Dockerfile
 compose.yml
 compose.*.yml
 
-/vendor/
+target/
 node_modules/
+public/build/
 
-bootstrap/cache/*
+database/
+*.sqlite*
 
 README.md
-
-database/database.sqlite

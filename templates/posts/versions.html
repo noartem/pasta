@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Versions of Pasta #{{ current }}{% endblock %}
+
+{% block content %}
+    <div class="flex flex-col items-start flex-1 w-full gap-6 p-4">
+        <div class="flex gap-4 align-center">
+            <h1 class="text-2xl font-bold dark:text-white">
+                🍝 Versions
+            </h1>
+
+            <a href="/{{ current }}" class="px-4 py-1 border-2 border-gray-500 w-fit-content dark:text-white">
+                Back to Pasta
+            </a>
+        </div>
+
+        <ul class="flex flex-col gap-4">
+            {% for post in versions %}
+                <li class="flex flex-col gap-1 pl-3 border-l-2 {% if post.slug == current %}border-gray-800 dark:border-white{% else %}border-transparent{% endif %}"
+                    style="margin-left: {{ post.indent }}px">
+                    {% include "list_item.html" %}
+                </li>
+            {% endfor %}
+        </ul>
+
+        {% if truncated %}
+            <p class="text-gray-400">Only the first {{ versions.len() }} versions are shown.</p>
+        {% endif %}
+    </div>
+{% endblock %}

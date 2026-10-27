@@ -1,19 +1,21 @@
 import { defineConfig } from "vite";
-import laravel from "laravel-vite-plugin";
 import path from "path";
 
 export default defineConfig({
-    plugins: [
-        laravel({
+    base: "/build/",
+    publicDir: false,
+    build: {
+        manifest: true,
+        outDir: "public/build",
+        emptyOutDir: true,
+        rollupOptions: {
             input: [
                 "resources/css/app.css",
-                "resources/js/app.js",
                 "resources/css/codemirror.css",
                 "resources/js/codemirror.js",
             ],
-            refresh: true,
-        }),
-    ],
+        },
+    },
     resolve: {
         alias: [
             {

@@ -1,0 +1,13 @@
+{# Expects `editor: &Editor` in scope. #}
+<form action="/" method="post" class="flex flex-1 w-full">
+    {% if !editor.parent.is_empty() %}
+        <input type="hidden" name="parent" value="{{ editor.parent }}">
+    {% endif %}
+
+    <textarea name="content" id="content" autofocus class="fixed w-10 h-10 opacity-0">{{ editor.value }}</textarea>
+
+    <div id="editor" data-codemirror="true" data-for="content" data-autofocus="1"
+        data-indicate-changes-in-page-title="{% if editor.indicate_changes %}1{% endif %}"
+        data-prev-url="{{ editor.prev_url }}" data-next-url="{{ editor.next_url }}" class="w-full min-h-full font-mono">
+    </div>
+</form>

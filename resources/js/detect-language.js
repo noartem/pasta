@@ -34,24 +34,20 @@ const patterns = {
         syntax: [/<\/[a-zA-Z]+>/g, />/g, /</g],
     },
     python: {
+        // Anchored to statement shape: "if", "with", "from", "import"... are also English words.
         keywords: [
-            /\bdef\b/g,
-            /\bclass\b/g,
-            /\bif\b/g,
-            /\belif\b/g,
-            /\belse:?\b/g,
-            /\bimport\b/g,
-            /\bfrom\b/g,
-            /\bas\b/g,
-            /\btry:?\b/g,
-            /\bexcept:?\b/g,
-            /\bfinally:?\b/g,
-            /\bwith\b/g,
-            /\blambda\b/g,
-            /\byield\b/g,
-            /\braise\b/g,
+            /^[ \t]*def\s+\w+\s*\(/gm,
+            /^[ \t]*class\s+\w+.*:[ \t]*$/gm,
+            /^[ \t]*(?:el)?if\b.*:[ \t]*$/gm,
+            /^[ \t]*else[ \t]*:/gm,
+            /^[ \t]*(?:from\s+[\w.]+\s+)?import\s+[\w.]+/gm,
+            /^[ \t]*(?:try|finally)[ \t]*:/gm,
+            /^[ \t]*except\b.*:[ \t]*$/gm,
+            /^[ \t]*(?:for|while|with)\b.*:[ \t]*$/gm,
+            /\blambda\b[^:\n]*:/g,
+            /^[ \t]*(?:yield|raise|return)\b/gm,
         ],
-        syntax: [/:/g, /#/g, /"""/g, /'''/g, /self\./g, /__init__/g],
+        syntax: [/:[ \t]*$/gm, /^[ \t]*#/gm, /"""/g, /'''/g, /self\./g, /__init__/g],
     },
     php: {
         keywords: [
@@ -76,19 +72,84 @@ const patterns = {
             /^#{1,6}\s/gm,
             /```/g,
             /\*\*(.*?)\*\*/g,
-            /\*(.*?)\*/g,
+            /(?<![*\w])\*[^\s*][^*\n]*\*(?![*\w])/g,
             /^>\s/gm,
             /\[(.*?)\]\((.*?)\)/g,
             /^[-+*]\s/gm,
             /^\d+\.\s/gm,
-            /\|/g,
+            /^\|.*\|[ \t]*$/gm,
         ],
         syntax: [/^---$/gm, /^===+$/gm, /```/g],
     },
+    sql: {
+        keywords: [
+            /\bselect\b[^;]{0,500}?\bfrom\b/gi,
+            /\binsert\s+into\b/gi,
+            /\bupdate\b[^;]{0,500}?\bset\b/gi,
+            /\bdelete\s+from\b/gi,
+            /\bcreate\s+(?:table|index|view|database|or\s+replace)\b/gi,
+            /\balter\s+table\b/gi,
+            /\bdrop\s+(?:table|index|view|database)\b/gi,
+            /\bwhere\b/gi,
+            /\b(?:inner|left|right|full|cross)\s+join\b/gi,
+            /\bgroup\s+by\b/gi,
+            /\border\s+by\b/gi,
+            /\bvalues\b/gi,
+            /\bprimary\s+key\b/gi,
+            /\b(?:varchar|bigint|timestamp)\b/gi,
+        ],
+        syntax: [/;[ \t]*$/gm, /--\s/g],
+    },
+    css: {
+        keywords: [
+            /^[ \t]*[.#]?[\w-][^{};\n]*\{[ \t]*$/gm,
+            /^[ \t]*[a-z-]+[ \t]*:[ \t]*[^;{}\n]+;[ \t]*$/gm,
+            /@(?:media|import|font-face|keyframes|supports)\b/g,
+            /\b\d+(?:px|rem|em|vh|vw)\b/g,
+            /#[0-9a-fA-F]{3,8}\b/g,
+        ],
+        syntax: [/\{/g, /\}/g, /;/g],
+    },
+    rust: {
+        keywords: [
+            /\bfn\s+\w+/g,
+            /\blet\s+mut\b/g,
+            /\bimpl\b/g,
+            /\bpub\s+(?:fn|struct|enum|mod|use|trait)\b/g,
+            /\buse\s+(?:std|crate|super|self)\b/g,
+            /\b(?:println|print|format|vec|panic|assert|assert_eq|write|writeln)!/g,
+            /\bstruct\s+[A-Z]\w*/g,
+            /\benum\s+[A-Z]\w*/g,
+            /\btrait\s+[A-Z]\w*/g,
+            /\bmatch\b/g,
+            /#!?\[[a-z_]+(?:\(.*?\))?\]/g,
+            /&(?:mut\s+)?(?:self|str)\b/g,
+            /\b(?:Option|Result|Vec|String|Box)</g,
+            /\b(?:Some|None|Ok|Err)\b/g,
+        ],
+        syntax: [/::/g, /->/g, /\{/g, /\}/g, /;/g],
+    },
 };
+
+function isJson(code) {
+    if (!/^[[{]/.test(code)) return false;
+    try {
+        const parsed = JSON.parse(code);
+        return typeof parsed === "object" && parsed !== null;
+    } catch {
+        return false;
+    }
+}
+
+// A couple of common English words ("if", "with", "from") must not turn prose into code.
+const MIN_SCORE = 3;
 
 export function detectLanguage(sourceCode) {
     const code = sourceCode.trim();
+
+    if (isJson(code)) {
+        return "json";
+    }
 
     const scores = Object.fromEntries(
         Object.keys(patterns).map((lang) => [lang, 0])
@@ -130,5 +191,5 @@ export function detectLanguage(sourceCode) {
         { lang: "unknown", score: 0 }
     );
 
-    return maxScore === 0 ? "unknown" : detectedLang;
+    return maxScore < MIN_SCORE ? "unknown" : detectedLang;
 }

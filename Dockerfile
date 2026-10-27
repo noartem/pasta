@@ -1,33 +1,44 @@
-FROM php:8.4-fpm
+# syntax=docker/dockerfile:1
 
-RUN apt-get update && apt-get install -y \
-    unzip \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    sqlite3 \
-    npm \
-    && docker-php-ext-install pdo mbstring exif pcntl bcmath gd
+# Frontend assets (CodeMirror, Tailwind) -> public/build
+FROM node:22-alpine AS assets
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.js tailwind.config.js postcss.config.js ./
+COPY resources ./resources
+COPY templates ./templates
+RUN npm run build
 
-COPY --from=composer:2.2 /usr/bin/composer /usr/bin/composer
+# Rust server; dependencies are cooked in a separate layer so source changes rebuild only the app
+FROM rust:1-bookworm AS chef
+RUN cargo install cargo-chef --locked
+WORKDIR /app
 
-WORKDIR /var/www/html
+FROM chef AS planner
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+RUN cargo chef prepare --recipe-path recipe.json
 
-COPY . .
+FROM chef AS server
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --locked --recipe-path recipe.json
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY templates ./templates
+RUN cargo build --release --locked && mkdir /data
 
-RUN composer install --no-dev --optimize-autoloader
+FROM gcr.io/distroless/cc-debian12:nonroot
+WORKDIR /app
+COPY --from=server /app/target/release/pasta ./pasta
+COPY public ./public
+COPY --from=assets /app/public/build ./public/build
+COPY --from=server --chown=65532:65532 /data /data
 
-RUN npm install && npm run build
-
-RUN chmod -R 777 storage bootstrap/cache
-
-RUN mkdir -p /var/www/html/database/sqlite && chmod -R 777 /var/www/html/database/sqlite
-
-COPY docker-start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
-
+ENV DATABASE_URL=sqlite:///data/database.sqlite \
+    LISTEN_ADDR=0.0.0.0:8000 \
+    PUBLIC_DIR=/app/public
+VOLUME /data
 EXPOSE 8000
 
-ENTRYPOINT ["/usr/local/bin/start.sh"]
+ENTRYPOINT ["/app/pasta"]
