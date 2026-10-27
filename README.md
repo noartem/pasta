@@ -60,3 +60,8 @@ Build locally:
 ```
 docker build -t pasta .
 ```
+
+## Deploy
+
+Every push to `master` is deployed to https://pasta.noartem.ru with [compose.yml](compose.yml).
+Secrets are sops-encrypted in `deploy/` (`npm run edit`). See [PROD.md](PROD.md).

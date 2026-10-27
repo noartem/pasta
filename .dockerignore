@@ -24,3 +24,7 @@ database/
 *.sqlite*
 
 README.md
+
+deploy/
+scripts/
+PROD.md

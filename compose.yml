@@ -1,0 +1,41 @@
+# Production compose for pasta.noartem.ru.
+#
+# CI (.github/workflows/ci.yml) pushes the image to GHCR, rsyncs this file and the
+# decrypted app .env to /opt/pasta on the VPS, and runs `docker compose pull && up -d`.
+# Caddy runs on the HOST and proxies pasta.noartem.ru to 127.0.0.1:8000, so the
+# container only publishes to localhost.
+#
+# The image tag is injected via ${IMAGE_TAG} (default: latest) so deploys and
+# rollbacks can pin a specific build (sha-<commit>).
+services:
+  pasta:
+    image: ghcr.io/${IMAGE_REPO:-noartem/pasta}:${IMAGE_TAG:-latest}
+    container_name: pasta
+    restart: unless-stopped
+    pull_policy: missing
+    env_file:
+      - .env
+    # Immutable root filesystem — only /data (volume) and /tmp (tmpfs) are writable.
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,size=16m,mode=1777
+    # Named volume: inherits the image's /data owned by the nonroot uid 65532.
+    volumes:
+      - data:/data
+    # Localhost-only: Caddy (host) reaches it here; never exposed publicly.
+    ports:
+      - "127.0.0.1:8000:8000"
+    mem_limit: 128m
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  data:

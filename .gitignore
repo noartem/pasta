@@ -13,3 +13,5 @@ npm-debug.log
 /.nova
 /.vscode
 /.zed
+/deploy/env
+/deploy/ssh-key

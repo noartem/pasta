@@ -3,7 +3,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite build --watch"
+        "dev": "vite build --watch",
+        "edit": "bash scripts/edit-secrets.sh"
     },
     "devDependencies": {
         "@codemirror/commands": "^6.8.0",
